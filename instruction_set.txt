@@ -1,43 +1,48 @@
  op |code|src|desc
 ----|----|---|
-push| 00 | x |pushes x to stack
-pop | 01 | x |pops top of the stack and saves the value in @x
-----|----|---|----removes items and store in the stack
-add | 02 |---|adds the 2 last items of the stack
-sub | 03 |---|substracts the item before top with the top
-mul | 04 |---|multiplies 2 last items of stack
-AND | 05 |---|AND between the 2 last items of the stack
-OR  | 06 |---|OR between the 2 last items of the stack
-NOT | 07 |---|NOT between the 2 last items of the stack
-cmp | 08 |---|compares the 2 last items of the stack (not implemented)
+push| 00 | x |pushes x to stack.
+pop | 01 | x |pops top of the stack and saves the value in @x.
+----|----|---|----removes items and store in the stack.
+add | 02 |---|adds the 2 last items of the stack.
+sub | 03 |---|substracts the item before top with the top.
+mul | 04 |---|multiplies 2 last items of stack.
+AND | 05 |---|AND between the 2 last items of the stack.
+OR  | 06 |---|OR between the 2 last items of the stack.
+NOT | 07 |---|NOT between the 2 last items of the stack.
+cmp | 08 |---|compares the 2 last items of the stack (not implemented).
 ----|----|---|----
-jmp | 09 | y |jumps to @y in the instruction memory
+jmp | 09 | y |jumps to @y in the instruction memory.
+----|----|---|goes to memory
+load| 0A | y |loads value from memory
+stor| 0B | y |stores a value to memory
 
 x = value in hex
-y = direction in hex
+y = direction in hex or label
 
 ===============================================================================
 VARIABLES
 
-SP = Stack Pointer
-SM = Stack Memory: std::stack<int> that stores the temporary values
+SP = Stack Pointer.
+SM = Stack Memory: std::stack<int> that stores the temporary values.
 
-IP = Instruction Pointer: a pointer to the instruction memory
-IM = Instruction Memory: the memory that stores the instructions of the file
+IP = Instruction Pointer: a pointer to the instruction memory.
+IM = Instruction Memory: the memory that stores the instructions of the file.
 
 MM = Main Memory: a vector that simulates the storage memory with 128 slots.
 
 ===============================================================================
 LIMITATIONS
 
-1 - Instruction limit set to 1024
-2 - Main Memory limit set to 1024
+1 - Instruction limit set to 1024.
+2 - Main Memory limit set to 1024.
+3 - This system does not support empty lines.
+4 - This system only supports labels for address, does not work with variables.
 
 ===============================================================================
 USAGE
 
 example:
-push 0xF # push 15 in stack
-push 0x5 # push 05 in stack
-add      # adds 15 + 5, removes 15 and 5 from stack and pushes the result
-pop  0x0 # saves the reult in the address 0x0 (position 0 of MM)
+label: push 0xF # Pushes 15 in stack.
+       push 0x5 # Pushes 05 in stack.
+       add      # Adds 15 + 5, removes 15 and 5 from stack and pushes the result.
+       pop  0x0 # Saves the reult in the address 0x0 (position 0 of MM).

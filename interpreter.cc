@@ -1,21 +1,24 @@
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <stack>
 #include <string>
 #include <vector>
 
 struct instruction
 {
-    int opCode;
-    int src;
+    int opCode = 0;
+    int src = 0;
 };
 
 std::stack<int> SM;                         // Stack Memory
 std::vector<int> MM (1024, 0);              // Main Memory
 std::vector<instruction> IM (1024, {0, 0}); // Instruction Memory
+std::map<std::string, int> labels;          // Label Memory
 
-int *SP; // Stack Pointer
-int *IP; // Instruction Pointer
+int *SP;    // Stack Pointer
+int *IP;    // Instruction Pointer
+int PC = 0; // Program Counter
 
 void Usage(std::string s)
 {
@@ -31,60 +34,93 @@ void Usage(std::string s)
  * 
  * @returns The instruction already encoded in the `encoded` argument.
  */
-void instructionEncoder(const std::string instr, instruction &encoded)
+instruction instructionEncoder(const std::string instr)
 {
+    instruction encoded;
+
+    std::string lastChar = "";
+
     // Gets the instruction name
     std::string operation = "";
     int length = instr.length(), i = 0;
-    while (i < length && instr[i] != ' ')
+    while (i < length)
     {
-        operation += instr[i];
+        if (instr[i] == ':') // Save as label
+        {
+            if (!labels.emplace(operation, PC).second)
+            {
+                std::cerr << "Label " << operation 
+                    << " already used. Error at line: " << PC << std::endl;
+                    exit(1);
+            }
+            
+            operation = "";
+            i += 2;
+        }
+
+        if (instr[i] == ' ' && operation != "")
+        {
+            break;
+        }
+
+        if (instr[i] != ' ')
+        {
+            operation += instr[i];
+        }
         ++i;
     }
     
     // Gets the opCode of the instruction
     int opCode = 0;
-    if (instr == "push")
+    if (operation == "push")
     {
         opCode = 0;
     }
-    else if (instr == "pop")
+    else if (operation == "pop")
     {
-        opCode = 1;
+        opCode = 0x01;
     }
-    else if (instr == "add")
+    else if (operation == "add")
     {
-        opCode = 2;
+        opCode = 0x02;
     }
-    else if (instr == "sub")
+    else if (operation == "sub")
     {
-        opCode = 3;
+        opCode = 0x03;
     }
-    else if (instr == "mul")
+    else if (operation == "mul")
     {
-        opCode = 4;
+        opCode = 0x04;
     }
-    else if (instr == "AND")
+    else if (operation == "AND")
     {
-        opCode = 5;
+        opCode = 0x05;
     }
-    else if (instr == "OR")
+    else if (operation == "OR")
     {
-        opCode = 6;
+        opCode = 0x06;
     }
-    else if (instr == "NOT")
+    else if (operation == "NOT")
     {
-        opCode = 7;
+        opCode = 0x07;
     }
-    else if (instr == "cmp")
+    else if (operation == "cmp")
     {
-        std::cerr << "Instruction cmp is not implemented yet." 
-            << std::endl;
+        std::cerr << "Instruction cmp is not implemented yet." << std::endl <<
+            "Error at line: " << PC + 1 << std::endl;
         exit(1);
     }
-    else if (instr == "jmp")
+    else if (operation == "jmp")
     {
-        opCode = 9;
+        opCode = 0x09;
+    }
+    else if (operation == "load")
+    {
+        opCode = 0x0A;
+    }
+    else if (operation == "stor")
+    {
+        opCode = 0x0B;
     }
     else
     {
@@ -96,27 +132,50 @@ void instructionEncoder(const std::string instr, instruction &encoded)
     encoded.opCode = opCode;
 
     // Gets the src of the instruction if it has
-    std::string src = "";
-    if (opCode == 0 || opCode == 1 || opCode == 9)
+    if (opCode == 0x00 || opCode == 0x01 || opCode == 0x09 || opCode == 0x0A ||
+        opCode == 0x0B)
     {
-        for (i = i; i < length; ++i)
+        std::string src = "";
+        ++i; // Skips the space
+        while (i < length && instr[i] != ' ') // Avoids the comments
         {
             src += instr[i];
+            ++i;
         }
 
         encoded.src = std::stoi(src, nullptr, 0);
     }
+
+    return encoded;
 }
 
 /** 
- * @brief Interpretates the code in the file. First transforms the instructions in
- *        bytes, then operates each instruction in order.
+ * @brief Loads all the intructions in the code by encoding each one and saving
+ *        them into a memory.
  * 
  * @param file An std::ifstream type wich contains the code.
  */
-void interpretateFile(const std::ifstream &file)
+void loadInstructions(std::ifstream &file)
 {
-    
+    // Reads line by line the code
+    std::string instr;
+    while (std::getline(file, instr))
+    {
+        // Saves instruction in IM
+        IM[PC] = instructionEncoder(instr);
+        ++PC;
+    }
+
+    // Changes the PC to the address of the main function, 
+    // otherwise starts at the first instruction.
+    if (labels.find("main:") != labels.end())
+    {
+        PC = labels["main:"];
+    }
+    else
+    {
+        PC = 0;
+    }
 }
 
 int main(int argc, char* argv[])
@@ -135,8 +194,8 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    interpretateFile(file);
-
+    loadInstructions(file);
     file.close();
+
     return 0;
 }
