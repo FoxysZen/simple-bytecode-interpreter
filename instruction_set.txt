@@ -1,23 +1,29 @@
  op |code|src|desc
 ----|----|---|
-push| 00 | x |pushes x to stack.
-pop | 01 | x |pops top of the stack and saves the value in @x.
+push| 01 | x |pushes x to stack.
+pop | 02 | x |pops the top of the stack.
 ----|----|---|----removes items and store in the stack.
-add | 02 |---|adds the 2 last items of the stack.
-sub | 03 |---|substracts the item before top with the top.
-mul | 04 |---|multiplies 2 last items of stack.
-AND | 05 |---|AND between the 2 last items of the stack.
-OR  | 06 |---|OR between the 2 last items of the stack.
-NOT | 07 |---|NOT between the 2 last items of the stack.
-cmp | 08 |---|compares the 2 last items of the stack (not implemented).
-----|----|---|----
-jmp | 09 | y |jumps to @y in the instruction memory.
+add | 03 |---|adds the 2 last items of the stack.
+sub | 04 |---|substracts the item before top with the top.
+mul | 05 |---|multiplies 2 last items of stack.
+AND | 06 |---|AND between the 2 last items of the stack.
+OR  | 07 |---|OR between the 2 last items of the stack.
+NOT | 08 |---|NOT between the 2 last items of the stack.
+cmp | 09 |---|compares the 2 last items of the stack (not implemented).
+----|----|---|jumps
+jmp | 0A | y |jumps to @y in the instruction memory.
+jz  | 00 | w |jumps if the result is 0
+jg  | 00 | w |jumps if flag equal is 0 and flag 
+jl  | 00 | w |jumps if
 ----|----|---|goes to memory
-load| 0A | y |loads value from memory
-stor| 0B | y |stores a value to memory
+load| 0B | z |loads value from memory to stack
+stor| 0C | z |pops top of the stack and stores the value in @z.
+----|----|---|
+prnt| 0D | z |prints a value from memory
 
 x = value in hex
 y = direction in hex or label
+z = position of the value in memory in hex
 
 ===============================================================================
 VARIABLES
@@ -31,12 +37,20 @@ IM = Instruction Memory: the memory that stores the instructions of the file.
 MM = Main Memory: a vector that simulates the storage memory with 128 slots.
 
 ===============================================================================
+FLAGS
+
+ZF = Zero Flag. True when result is 0.
+SF = Sign Flag. True when result is bigger than 0.
+
+
+===============================================================================
 LIMITATIONS
 
 1 - Instruction limit set to 1024.
 2 - Main Memory limit set to 1024.
 3 - This system does not support empty lines.
 4 - This system only supports labels for address, does not work with variables.
+5 - Labels must start with a letter.
 
 ===============================================================================
 USAGE
@@ -46,3 +60,9 @@ label: push 0xF # Pushes 15 in stack.
        push 0x5 # Pushes 05 in stack.
        add      # Adds 15 + 5, removes 15 and 5 from stack and pushes the result.
        pop  0x0 # Saves the reult in the address 0x0 (position 0 of MM).
+
+===============================================================================
+Error Check (Not for Users)
+
+If an instruccion uses a label but its not defined, its set to address -1 so it
+will cause an error when trying to access the IM[-1]

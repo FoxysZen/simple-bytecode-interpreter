@@ -1,5 +1,9 @@
-main: push 0x5
+main: push 0x5   
       push 0x04 # test comment
       add
       stor 0x05
-      cmp
+      jmp  yes
+yes:  push 0x0A
+      push 0x06
+      stor 0x07
+end:  push 0x0
