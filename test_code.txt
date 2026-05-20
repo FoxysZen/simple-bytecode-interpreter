@@ -1,9 +1,9 @@
-main: push 0x5   
-      push 0x04 # test comment
-      add
-      stor 0x05
-      jmp  yes
-yes:  push 0x0A
-      push 0x06
-      stor 0x07
-end:  push 0x0
+main: push 0x05   
+      push 0x06 # test comment
+      cmp
+      jg   big
+      stor 0x5
+      jmp  end
+big:  stor 0x2
+end:  prnt 0x5
+      prnt 0x2

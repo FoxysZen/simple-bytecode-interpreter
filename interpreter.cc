@@ -20,6 +20,10 @@ int *SP;    // Stack Pointer
 int *IP;    // Instruction Pointer
 int PC = 0; // Program Counter
 
+// Flags
+bool ZF = true;  // Zero Flag
+bool SF = false; // Sign Flag
+
 void Usage(std::string s)
 {
     std::cerr << "Usage: " << s << " <file.txt>" << std::endl;
@@ -196,21 +200,35 @@ instruction instructionEncoder(const std::string instr, int pass)
     }
     else if (operation == "cmp")
     {
-        std::cerr << "Error at line: " << PC + 1  << std::endl
-            << "Instruction cmp is not implemented yet." << std::endl;
-        exit(1);
+        opCode = 0x09;
     }
     else if (operation == "jmp")
     {
         opCode = 0x0A;
     }
-    else if (operation == "load")
+    else if (operation == "jz")
     {
         opCode = 0x0B;
     }
-    else if (operation == "stor")
+    else if (operation == "jg")
     {
         opCode = 0x0C;
+    }
+    else if (operation == "jl")
+    {
+        opCode = 0x0D;
+    }
+    else if (operation == "load")
+    {
+        opCode = 0x0E;
+    }
+    else if (operation == "stor")
+    {
+        opCode = 0x0F;
+    }
+    else if (operation == "prnt")
+    {
+        opCode = 0x10;
     }
     else
     {
@@ -222,7 +240,8 @@ instruction instructionEncoder(const std::string instr, int pass)
     encoded.opCode = opCode;
 
     // Gets the src of the instruction if it has
-    if (opCode == 0x01 || opCode == 0x02 || opCode == 0x0B || opCode == 0x0C)
+    if (opCode == 0x01 || opCode == 0x02 || opCode == 0x0E || opCode == 0x0F ||
+        opCode == 0x10)
     {
         while (instr[i] == ' ') // Skips the space
         {
@@ -238,7 +257,8 @@ instruction instructionEncoder(const std::string instr, int pass)
 
         encoded.src = std::stoi(src, nullptr, 0);
     }
-    else if (opCode == 0x0A)
+    else if (opCode == 0x0A || opCode == 0x0B || opCode == 0x0C || 
+             opCode == 0x0D)
     {
         // Gets the address or the label of the address
         while (instr[i] == ' ') // Skips the space
@@ -303,6 +323,30 @@ void loadInstructions(std::ifstream &file, int pass)
 }
 
 /**
+ * @brief Checks the flags given a result.
+ * 
+ * @param result The value to be checked.
+ */
+void checkFlags(int result)
+{
+    if (result > 0)
+    {
+        SF = true;
+        ZF = false;
+    }
+    else if (result == 0)
+    {
+        SF = true;
+        ZF = true;
+    }
+    else
+    {
+        SF = false;
+        ZF = false;
+    }
+}
+
+/**
  * @brief Handles the push operation. Pushes the src value into SM.
  */
 void handlePush()
@@ -345,7 +389,10 @@ void handleAdd()
         SM.pop();
     }
 
-    SM.push(a + b);
+    int c = a + b;
+    checkFlags(c);
+
+    SM.push(c);
 }
 
 /**
@@ -367,7 +414,10 @@ void handleSub()
         SM.pop();
     }
 
-    SM.push(b - a);
+    int c = b - a;
+    checkFlags(c);
+    
+    SM.push(c);
 }
 
 /**
@@ -389,7 +439,10 @@ void handleMul()
         SM.pop();
     }
 
-    SM.push(a * b);
+    int c = a * b;
+    checkFlags(c);
+    
+    SM.push(c);
 }
 
 /**
@@ -411,7 +464,10 @@ void handleAND()
         SM.pop();
     }
 
-    SM.push(a & b);
+    int c = a & b;
+    checkFlags(c);
+    
+    SM.push(c);
 }
 
 /**
@@ -433,7 +489,10 @@ void handleOR()
         SM.pop();
     }
 
-    SM.push(a | b);
+    int c = a | b;
+    checkFlags(c);
+    
+    SM.push(c);
 }
 
 /**
@@ -442,14 +501,39 @@ void handleOR()
  */
 void handleNOT()
 {
-    int a, b;
+    int a;
     if (!SM.empty())
     {
         a = SM.top();
         SM.pop();
     }
 
-    SM.push(~a);
+    int c = ~a;
+    checkFlags(c);
+    
+    SM.push(c);
+}
+
+/**
+ * @brief Handles the cmp operation. Same as sub but without popping values 
+ *        from stack.
+ */
+void handleCmp()
+{
+    int a, b;
+    if (!SM.empty())
+    {
+        a = SM.top();
+    }
+
+    if (!SM.empty())
+    {
+        b = SM.top();
+    }
+
+    int c = b - a;
+
+    checkFlags(c);
 }
 
 /**
@@ -462,6 +546,40 @@ void handleJmp()
     // we want to execute.
     PC = IM[PC].src - 1;
 }
+
+/**
+ * @brief Handles the jz operation. Modifies the PC register if ZF.
+ */
+void handleJz()
+{
+    if (ZF)
+    {
+        PC = IM[PC].src - 1;
+    }
+}
+
+/**
+ * @brief Handles the jg operation. Modifies the PC register if !ZF and SF.
+ */
+void handleJg()
+{
+    if (!ZF && SF)
+    {
+        PC = IM[PC].src - 1;
+    }
+}
+
+/**
+ * @brief Handles the jl operation. Modifies the PC register if !ZF and !SF.
+ */
+void handleJl()
+{
+    if (!ZF && !SF)
+    {
+        PC = IM[PC].src - 1;
+    }
+}
+
 
 /**
  * @brief Handles the load operation. Loads a value from memory and pushes it 
@@ -489,6 +607,16 @@ void handleStor()
         MM[IM[PC].src] = SM.top();
         SM.pop();
     }
+}
+
+/**
+ * @brief Handles the prnt operation. Prints on console the value from memory 
+ *        specified.
+ */
+void handlePrnt()
+{
+    std::cout << "Memory Position: 0x" << std::hex << IM[PC].src << std::endl 
+        << "Value: " << MM[IM[PC].src] << std::endl;
 }
 
 
@@ -527,17 +655,29 @@ void executeCode()
         case 0x08:
             handleNOT();
             break;
-        /*case 0x09:
+        case 0x09:
             handleCmp();
-            break;*/
+            break;
         case 0x0A:
             handleJmp();
             break;
         case 0x0B:
-            handleLoad();
+            handleJz();
             break;
         case 0x0C:
+            handleJg();
+            break;
+        case 0x0D:
+            handleJl();
+            break;
+        case 0x0E:
+            handleLoad();
+            break;
+        case 0x0F:
             handleStor();
+            break;
+        case 0x10:
+            handlePrnt();
             break;
         
         default:
@@ -572,7 +712,7 @@ int main(int argc, char* argv[])
 
     executeCode();
 
-    debugPrintIM();
+    //debugPrintIM();
     debugPrintMM(10);
 
     return 0;

@@ -10,16 +10,16 @@ AND | 06 |---|AND between the 2 last items of the stack.
 OR  | 07 |---|OR between the 2 last items of the stack.
 NOT | 08 |---|NOT between the 2 last items of the stack.
 cmp | 09 |---|compares the 2 last items of the stack (not implemented).
-----|----|---|jumps
+----|----|---|----jumps:
 jmp | 0A | y |jumps to @y in the instruction memory.
-jz  | 00 | w |jumps if the result is 0
-jg  | 00 | w |jumps if flag equal is 0 and flag 
-jl  | 00 | w |jumps if
-----|----|---|goes to memory
-load| 0B | z |loads value from memory to stack
-stor| 0C | z |pops top of the stack and stores the value in @z.
+jz  | 0B | y |jumps if ZF.
+jg  | 0C | y |jumps if !ZF and SF.
+jl  | 0D | y |jumps if !ZF and !SF.
+----|----|---|----goes to memory.
+load| 0E | z |loads value from memory to stack.
+stor| 0F | z |pops top of the stack and stores the value in @z.
 ----|----|---|
-prnt| 0D | z |prints a value from memory
+prnt| 10 | z |prints a value from memory on console.
 
 x = value in hex
 y = direction in hex or label
