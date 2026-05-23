@@ -1,8 +1,10 @@
 main: push 0x05   
       push 0x06 # test comment
+
       cmp
       jg   big
       stor 0x5
+# test line comment
       jmp  end
 big:  stor 0x2
 end:  prnt 0x5

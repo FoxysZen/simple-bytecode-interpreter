@@ -48,7 +48,8 @@ LIMITATIONS
 
 1 - Instruction limit set to 1024.
 2 - Main Memory limit set to 1024.
-3 - This system does not support empty lines.
+3 - This system does not support lines with only spaces or tabs.
+    (supports empty lines)
 4 - This system only supports labels for address, does not work with variables.
 5 - Labels must start with a letter.
 

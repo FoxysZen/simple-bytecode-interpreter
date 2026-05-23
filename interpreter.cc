@@ -5,6 +5,24 @@
 #include <string>
 #include <vector>
 
+// Operation values
+const int push = 0x01;
+const int pop  = 0x02;
+const int add  = 0x03;
+const int sub  = 0x04;
+const int mul  = 0x05;
+const int AND  = 0x06;
+const int OR   = 0x07;
+const int NOT  = 0x08;
+const int cmp  = 0x09;
+const int jmp  = 0x0A;
+const int jz   = 0x0B;
+const int jg   = 0x0C;
+const int jl   = 0x0D;
+const int load = 0x0E;
+const int stor = 0x0F;
+const int prnt = 0x10;
+
 struct instruction
 {
     int opCode = 0;
@@ -168,67 +186,67 @@ instruction instructionEncoder(const std::string instr, int pass)
     int opCode = 0;
     if (operation == "push")
     {
-        opCode = 0x01;
+        opCode = push;
     }
     else if (operation == "pop")
     {
-        opCode = 0x02;
+        opCode = pop;
     }
     else if (operation == "add")
     {
-        opCode = 0x03;
+        opCode = add;
     }
     else if (operation == "sub")
     {
-        opCode = 0x04;
+        opCode = sub;
     }
     else if (operation == "mul")
     {
-        opCode = 0x05;
+        opCode = mul;
     }
     else if (operation == "AND")
     {
-        opCode = 0x06;
+        opCode = AND;
     }
     else if (operation == "OR")
     {
-        opCode = 0x07;
+        opCode = OR;
     }
     else if (operation == "NOT")
     {
-        opCode = 0x08;
+        opCode = NOT;
     }
     else if (operation == "cmp")
     {
-        opCode = 0x09;
+        opCode = cmp;
     }
     else if (operation == "jmp")
     {
-        opCode = 0x0A;
+        opCode = jmp;
     }
     else if (operation == "jz")
     {
-        opCode = 0x0B;
+        opCode = jz;
     }
     else if (operation == "jg")
     {
-        opCode = 0x0C;
+        opCode = jg;
     }
     else if (operation == "jl")
     {
-        opCode = 0x0D;
+        opCode = jl;
     }
     else if (operation == "load")
     {
-        opCode = 0x0E;
+        opCode = load;
     }
     else if (operation == "stor")
     {
-        opCode = 0x0F;
+        opCode = stor;
     }
     else if (operation == "prnt")
     {
-        opCode = 0x10;
+        opCode = prnt;
     }
     else
     {
@@ -305,6 +323,11 @@ void loadInstructions(std::ifstream &file, int pass)
     std::string instr;
     while (std::getline(file, instr) && PC < 1024)
     {
+        if (instr == "" || instr[0] == '#')
+        {
+            continue;
+        }
+
         // Saves instruction in IM
         IM[PC] = instructionEncoder(instr, pass);
         ++PC;
@@ -631,52 +654,52 @@ void executeCode()
         instruction instr = IM[PC];
         switch (instr.opCode)
         {
-        case 0x01:
+        case push:
             handlePush();
             break;
-        case 0x02:
+        case pop:
             handlePop();
             break;
-        case 0x03:
+        case add:
             handleAdd();
             break;
-        case 0x04:
+        case sub:
             handleSub();
             break;
-        case 0x05:
+        case mul:
             handleMul();
             break;
-        case 0x06:
+        case AND:
             handleAND();
             break;
-        case 0x07:
+        case OR:
             handleOR();
             break;
-        case 0x08:
+        case NOT:
             handleNOT();
             break;
-        case 0x09:
+        case cmp:
             handleCmp();
             break;
-        case 0x0A:
+        case jmp:
             handleJmp();
             break;
-        case 0x0B:
+        case jz:
             handleJz();
             break;
-        case 0x0C:
+        case jg:
             handleJg();
             break;
-        case 0x0D:
+        case jl:
             handleJl();
             break;
-        case 0x0E:
+        case load:
             handleLoad();
             break;
-        case 0x0F:
+        case stor:
             handleStor();
             break;
-        case 0x10:
+        case prnt:
             handlePrnt();
             break;
         
@@ -713,7 +736,7 @@ int main(int argc, char* argv[])
     executeCode();
 
     //debugPrintIM();
-    debugPrintMM(10);
+    //debugPrintMM(10);
 
     return 0;
 }
