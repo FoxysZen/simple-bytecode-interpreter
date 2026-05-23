@@ -335,7 +335,7 @@ void loadInstructions(std::ifstream &file, int pass)
 
     // Changes the PC to the address of the main function, 
     // otherwise starts at the first instruction.
-    if (labels.find("main") != labels.end())
+    if (labels.find("main") != labels.end() && pass == 2)
     {
         PC = labels["main"];
     }
@@ -352,21 +352,8 @@ void loadInstructions(std::ifstream &file, int pass)
  */
 void checkFlags(int result)
 {
-    if (result > 0)
-    {
-        SF = true;
-        ZF = false;
-    }
-    else if (result == 0)
-    {
-        SF = true;
-        ZF = true;
-    }
-    else
-    {
-        SF = false;
-        ZF = false;
-    }
+    ZF = (result == 0);
+    SF = (result < 0);
 }
 
 /**
