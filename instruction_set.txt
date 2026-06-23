@@ -21,9 +21,9 @@ stor| 0F | z |pops top of the stack and stores the value in @z.
 ----|----|---|
 prnt| 10 | z |prints a value from memory on console.
 
-x = value in hex
-y = direction in hex or label
-z = position of the value in memory in hex
+x = value in hex of 2Bytes
+y = direction in hex or label of 2Bytes
+z = position of the value in memory in hex of 2Bytes
 
 ===============================================================================
 VARIABLES
@@ -52,6 +52,7 @@ LIMITATIONS
     (supports empty lines)
 4 - This system only supports labels for address, does not work with variables.
 5 - Labels must start with a letter.
+6 - Stack size limit set to 256.
 
 ===============================================================================
 USAGE

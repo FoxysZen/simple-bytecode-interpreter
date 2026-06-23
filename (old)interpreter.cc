@@ -1,40 +1,46 @@
-#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <stack>
 #include <string>
+#include <vector>
 
 // Operation values
-const std::uint8_t push = 0x01;
-const std::uint8_t pop  = 0x02;
-const std::uint8_t add  = 0x03;
-const std::uint8_t sub  = 0x04;
-const std::uint8_t mul  = 0x05;
-const std::uint8_t AND  = 0x06;
-const std::uint8_t OR   = 0x07;
-const std::uint8_t NOT  = 0x08;
-const std::uint8_t cmp  = 0x09;
-const std::uint8_t jmp  = 0x0A;
-const std::uint8_t jz   = 0x0B;
-const std::uint8_t jg   = 0x0C;
-const std::uint8_t jl   = 0x0D;
-const std::uint8_t load = 0x0E;
-const std::uint8_t stor = 0x0F;
-const std::uint8_t prnt = 0x10;
+const int push = 0x01;
+const int pop  = 0x02;
+const int add  = 0x03;
+const int sub  = 0x04;
+const int mul  = 0x05;
+const int AND  = 0x06;
+const int OR   = 0x07;
+const int NOT  = 0x08;
+const int cmp  = 0x09;
+const int jmp  = 0x0A;
+const int jz   = 0x0B;
+const int jg   = 0x0C;
+const int jl   = 0x0D;
+const int load = 0x0E;
+const int stor = 0x0F;
+const int prnt = 0x10;
 
-std::uint16_t SM[256];             // Stack Memory
-std::uint16_t MM[1024] = {0};      // Main Memory
-std::uint16_t IM[1024] = {0};      // Instruction Memory
-std::map<std::string, int> labels; // Label Memory
+struct instruction
+{
+    int opCode = 0;
+    int src = 0;
+};
 
-std::uint8_t SP = 0xFF;
-std::uint16_t IP;
-std::uint16_t PC;
+std::stack<int> SM;                         // Stack Memory
+std::vector<int> MM (1024, 0);              // Main Memory
+std::vector<instruction> IM (1024, {0, 0}); // Instruction Memory
+std::map<std::string, int> labels;          // Label Memory
+
+int *SP;    // Stack Pointer
+int *IP;    // Instruction Pointer
+int PC = 0; // Program Counter
 
 // Flags
-std::uint8_t flags = 0x01;
-const std::uint8_t ZF = 0x01; // Zero Flag
-const std::uint8_t SF = 0x02; // Sign Flag
+bool ZF = true;  // Zero Flag
+bool SF = false; // Sign Flag
 
 void Usage(std::string s)
 {
@@ -47,22 +53,37 @@ void Usage(std::string s)
  */
 void debugPrintIM()
 {
-    std::cout << "opCode    |  src" << std::endl;
-    std::cout << "----------|------" << std::endl;
-
+    std::cout << "opCode |  src" << std::endl;
     int i = 0;
-    while (i < 1024 && (IM[i] >> 8) != 0x00)
+    while (i < 1024 && IM[i].opCode != 0x00)
     {
-        std::uint16_t instr = IM[i];
-        int op = (instr >> 8) & 0xFF;
-        int src = instr & 0xFF;
+        instruction instr = IM[i];
+        int space = 0;
+        if (instr.opCode - 16 < 16)
+        {
+            space = 2;
+        }
+        else
+        {
+            space = 1;
+        }
+        
+        for (int j = 0; j < space; ++j)
+        {
+            std::cout << ' ';
+        }
+        
+        std::cout << "0x" << std::hex << IM[i].opCode;
 
-        printf("0x%-8x|  0x%x\n", op, src);
+        for (int j = 0; j < 2; ++j)
+        {
+            std::cout << ' ';
+        }
+
+        std::cout << "|  0x" << std::hex << instr.src << std::endl;
 
         ++i;
     }
-
-    std::cout << std::endl;
 }
 
 /**
@@ -73,17 +94,30 @@ void debugPrintIM()
 void debugPrintMM(int rows)
 {
     std::cout << "Main Memory Contents" << std::endl;
-    std::cout << "Address | MM" << std::endl;
-    std::cout << "--------|-------" << std::endl;
-
+    std::cout << "#col | MM" << std::endl;
     int i = 0;
     while (i < rows)
     {
-        printf("0x%-5x | 0x%x\n", i, MM[i]);
+        std::cout << ' ' << std::hex << i;
+
+        int space = 3;
+        if (i > 255)
+        {
+            space = 1;
+        }
+        else if (i > 15)
+        {
+            space = 2;
+        }
+
+        for (int j = 0; j < space; ++j)
+        {
+            std::cout << ' ';
+        }
+        
+        std::cout << "| 0x" << std::hex << MM[i] << std::endl;
         ++i;
     }
-
-    std::cout << std::endl;
 }
 
 bool isLetter(char s)
@@ -105,12 +139,13 @@ bool isLetter(char s)
  * 
  * @returns The instruction already encoded in the `encoded` argument.
  */
-std::uint16_t instructionEncoder(const std::string instr, int pass)
+instruction instructionEncoder(const std::string instr, int pass)
 {
-    std::uint16_t encoded;
+    instruction encoded;
 
     std::string lastChar = "";
 
+    // Gets the instruction name
     std::string operation = "";
     int length = instr.length(), i = 0;
     while (i < length)
@@ -147,7 +182,8 @@ std::uint16_t instructionEncoder(const std::string instr, int pass)
         ++i;
     }
     
-    std::uint8_t opCode = 0x00;
+    // Gets the opCode of the instruction
+    int opCode = 0;
     if (operation == "push")
     {
         opCode = push;
@@ -219,8 +255,9 @@ std::uint16_t instructionEncoder(const std::string instr, int pass)
         exit(1);
     }
 
-    encoded = opCode << 8;
+    encoded.opCode = opCode;
 
+    // Gets the src of the instruction if it has
     if (opCode == 0x01 || opCode == 0x02 || opCode == 0x0E || opCode == 0x0F ||
         opCode == 0x10)
     {
@@ -236,11 +273,12 @@ std::uint16_t instructionEncoder(const std::string instr, int pass)
             ++i;
         }
 
-        encoded = encoded | std::stoi(src, nullptr, 0);
+        encoded.src = std::stoi(src, nullptr, 0);
     }
     else if (opCode == 0x0A || opCode == 0x0B || opCode == 0x0C || 
              opCode == 0x0D)
     {
+        // Gets the address or the label of the address
         while (instr[i] == ' ') // Skips the space
         {
             ++i;
@@ -257,16 +295,16 @@ std::uint16_t instructionEncoder(const std::string instr, int pass)
         {
             if (labels.find(src) != labels.end())
             {
-                encoded = encoded | labels[src];
+                encoded.src = labels[src];
             }
             else // If not exists, creates a slot but without a valid address
             {
-                encoded = encoded | 0xFF;
+                encoded.src = -1;
             }
         }
-        else
+        else // Its an address
         {
-            encoded = encoded | std::stoi(src, nullptr, 0);
+            encoded.src = std::stoi(src, nullptr, 0);
         }
     }
 
@@ -281,6 +319,7 @@ std::uint16_t instructionEncoder(const std::string instr, int pass)
  */
 void loadInstructions(std::ifstream &file, int pass)
 {
+    // Reads line by line the code
     std::string instr;
     while (std::getline(file, instr) && PC < 1024)
     {
@@ -289,6 +328,7 @@ void loadInstructions(std::ifstream &file, int pass)
             continue;
         }
 
+        // Saves instruction in IM
         IM[PC] = instructionEncoder(instr, pass);
         ++PC;
     }
@@ -310,25 +350,10 @@ void loadInstructions(std::ifstream &file, int pass)
  * 
  * @param result The value to be checked.
  */
-void checkFlags(std::uint8_t result)
+void checkFlags(int result)
 {
-    if (result == 0x00)
-    {
-        flags |= ZF;
-    }
-    else
-    {
-        flags &= ~ZF;
-    }
-
-    if (static_cast<std::int8_t>(result) < 0)
-    {
-        flags |= SF;
-    }
-    else
-    {
-        flags &= ~SF;
-    }
+    ZF = (result == 0);
+    SF = (result < 0);
 }
 
 /**
@@ -336,12 +361,7 @@ void checkFlags(std::uint8_t result)
  */
 void handlePush()
 {
-    if (SP == 0x00)
-    {
-        std::cerr << "Push error: No memory left in the stack." << std::endl;
-    }
-    --SP;
-    SM[SP] = IM[PC] & 0xFF;
+    SM.push(IM[PC].src);
 }
 
 /**
@@ -349,14 +369,14 @@ void handlePush()
  */
 void handlePop()
 {
-    if (SP == 0xFF)
+    if (SM.empty())
     {
         std::cerr << "Trying to pop Stack Memory with no elements." 
             << std::endl;
     }
     else
     {
-        ++SP;
+        SM.pop();
     }
 }
 
@@ -366,21 +386,23 @@ void handlePop()
  */
 void handleAdd()
 {
-    if (SP >= 0xFE)
+    int a, b;
+    if (!SM.empty())
     {
-        std::cerr << "Trying to add but stack has less than two elements." 
-            << std::endl;
-        exit(1);
+        a = SM.top();
+        SM.pop();
     }
 
-    std::uint8_t a = SM[SP++];
-    std::uint8_t b = SM[SP++];
+    if (!SM.empty())
+    {
+        b = SM.top();
+        SM.pop();
+    }
 
-    std::uint8_t c = a + b;
+    int c = a + b;
     checkFlags(c);
 
-    --SP;
-    SM[SP] = c;
+    SM.push(c);
 }
 
 /**
@@ -389,21 +411,23 @@ void handleAdd()
  */
 void handleSub()
 {
-    if (SP >= 0xFE)
+    int a, b;
+    if (!SM.empty())
     {
-        std::cerr << "Trying to sub but stack has less than two elements." 
-            << std::endl;
-        exit(1);
+        a = SM.top();
+        SM.pop();
     }
 
-    std::uint8_t a = SM[SP++];
-    std::uint8_t b = SM[SP++];
+    if (!SM.empty())
+    {
+        b = SM.top();
+        SM.pop();
+    }
 
-    std::uint8_t c = b - a;
+    int c = b - a;
     checkFlags(c);
-
-    --SP;
-    SM[SP] = c;
+    
+    SM.push(c);
 }
 
 /**
@@ -412,21 +436,23 @@ void handleSub()
  */
 void handleMul()
 {
-    if (SP >= 0xFE)
+    int a, b;
+    if (!SM.empty())
     {
-        std::cerr << "Trying to mul but stack has less than two elements." 
-            << std::endl;
-        exit(1);
+        a = SM.top();
+        SM.pop();
     }
 
-    std::uint8_t a = SM[SP++];
-    std::uint8_t b = SM[SP++];
+    if (!SM.empty())
+    {
+        b = SM.top();
+        SM.pop();
+    }
 
-    std::uint8_t c = a * b;
+    int c = a * b;
     checkFlags(c);
-
-    --SP;
-    SM[SP] = c;
+    
+    SM.push(c);
 }
 
 /**
@@ -435,21 +461,23 @@ void handleMul()
  */
 void handleAND()
 {
-    if (SP >= 0xFE)
+    int a, b;
+    if (!SM.empty())
     {
-        std::cerr << "Trying to AND but stack has less than two elements." 
-            << std::endl;
-        exit(1);
+        a = SM.top();
+        SM.pop();
     }
 
-    std::uint8_t a = SM[SP++];
-    std::uint8_t b = SM[SP++];
+    if (!SM.empty())
+    {
+        b = SM.top();
+        SM.pop();
+    }
 
-    std::uint8_t c = a & b;
+    int c = a & b;
     checkFlags(c);
-
-    --SP;
-    SM[SP] = c;
+    
+    SM.push(c);
 }
 
 /**
@@ -458,21 +486,23 @@ void handleAND()
  */
 void handleOR()
 {
-    if (SP >= 0xFE)
+    int a, b;
+    if (!SM.empty())
     {
-        std::cerr << "Trying to OR but stack has less than two elements." 
-            << std::endl;
-        exit(1);
+        a = SM.top();
+        SM.pop();
     }
 
-    std::uint8_t a = SM[SP++];
-    std::uint8_t b = SM[SP++];
+    if (!SM.empty())
+    {
+        b = SM.top();
+        SM.pop();
+    }
 
-    std::uint8_t c = a | b;
+    int c = a | b;
     checkFlags(c);
-
-    --SP;
-    SM[SP] = c;
+    
+    SM.push(c);
 }
 
 /**
@@ -481,20 +511,17 @@ void handleOR()
  */
 void handleNOT()
 {
-    if (SP >= 0xFF)
+    int a;
+    if (!SM.empty())
     {
-        std::cerr << "Trying to NOT but stack has no elements." 
-            << std::endl;
-        exit(1);
+        a = SM.top();
+        SM.pop();
     }
 
-    std::uint8_t a = SM[SP++];
-
-    std::uint8_t c = ~a;
+    int c = ~a;
     checkFlags(c);
-
-    --SP;
-    SM[SP] = c;
+    
+    SM.push(c);
 }
 
 /**
@@ -503,17 +530,19 @@ void handleNOT()
  */
 void handleCmp()
 {
-    if (SP >= 0xFE)
+    int a, b;
+    if (!SM.empty())
     {
-        std::cerr << "Trying to cmp but stack has less than two elements." 
-            << std::endl;
-        exit(1);
+        a = SM.top();
     }
 
-    std::uint8_t a = SM[SP];
-    std::uint8_t b = SM[SP + 1];
+    if (!SM.empty())
+    {
+        b = SM.top();
+    }
 
-    std::uint8_t c = b - a;
+    int c = b - a;
+
     checkFlags(c);
 }
 
@@ -525,7 +554,7 @@ void handleJmp()
 {
     // PC set to the instruction before the one chosen so the next is the one 
     // we want to execute.
-    PC = (IM[PC] & 0xFF) - 0x01;
+    PC = IM[PC].src - 1;
 }
 
 /**
@@ -533,9 +562,9 @@ void handleJmp()
  */
 void handleJz()
 {
-    if ((flags & ZF) != 0x00)
+    if (ZF)
     {
-        PC = (IM[PC] & 0xFF) - 0x01;
+        PC = IM[PC].src - 1;
     }
 }
 
@@ -544,9 +573,9 @@ void handleJz()
  */
 void handleJg()
 {
-    if (!(flags & ZF) && (flags & SF))
+    if (!ZF && SF)
     {
-        PC = (IM[PC] & 0xFF) - 0x01;
+        PC = IM[PC].src - 1;
     }
 }
 
@@ -555,9 +584,9 @@ void handleJg()
  */
 void handleJl()
 {
-    if (!(flags & ZF) && !(flags & SF))
+    if (!ZF && !SF)
     {
-        PC = (IM[PC] & 0xFF) - 0x01;
+        PC = IM[PC].src - 1;
     }
 }
 
@@ -568,8 +597,7 @@ void handleJl()
  */
 void handleLoad()
 {
-    --SP;
-    SM[SP] = MM[(IM[PC] & 0xFF)];
+    SM.push(MM[IM[PC].src]);
 }
 
 /**
@@ -578,15 +606,16 @@ void handleLoad()
  */
 void handleStor()
 {
-    if (SP == 0xFF)
+    if (SM.empty())
     {
         std::cerr << "Trying to store from Stack Memory with no elements." 
             << std::endl;
     }
     else
     {
-        MM[(IM[PC] & 0xFF)] = SM[SP];
-        handlePop();
+        // Save value on memory and pop from stack
+        MM[IM[PC].src] = SM.top();
+        SM.pop();
     }
 }
 
@@ -596,9 +625,8 @@ void handleStor()
  */
 void handlePrnt()
 {
-    std::cout << "Memory Position: 0x" << std::hex << (IM[PC] & 0xFF) 
-        << std::endl << "Value: " << MM[(IM[PC] & 0xFF)] << std::endl 
-        << std::endl;
+    std::cout << "Memory Position: 0x" << std::hex << IM[PC].src << std::endl 
+        << "Value: " << MM[IM[PC].src] << std::endl;
 }
 
 
@@ -608,10 +636,10 @@ void handlePrnt()
 void executeCode()
 {
     PC = 0;
-    while (PC < 1024 && ((IM[PC] >> 8) & 0xFF) != 0x00)
+    while (PC < 1024 && IM[PC].opCode != 0x00)
     {
-        std::uint16_t instr = IM[PC];
-        switch (instr >> 8)
+        instruction instr = IM[PC];
+        switch (instr.opCode)
         {
         case push:
             handlePush();
@@ -687,16 +715,15 @@ int main(int argc, char* argv[])
     }
 
     loadInstructions(file, 1);
-    // Second pass to solve unsolved labels
-    file.clear();
+    file.clear();  // Second pass to solve unsolved labels
     file.seekg(0);
     loadInstructions(file, 2);
     file.close();
 
     executeCode();
 
-    debugPrintIM();
-    debugPrintMM(10);
+    //debugPrintIM();
+    //debugPrintMM(10);
 
     return 0;
 }
